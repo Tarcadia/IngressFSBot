@@ -105,6 +105,8 @@ class PasscodeHandler:
         portal_index = command[2]
         portal_name = command[3]
         portal_media = command[4]
+        report_trusted = False
+        user_trusted = False
         with self.lock:
             self.passcode_log.user_info[uid] = user
             if not uid in self.passcode_log.user_reports:
@@ -116,12 +118,28 @@ class PasscodeHandler:
                 "name": portal_name,
                 "media": portal_media
             })
-            for trusted_uid in self.passcode_log.get_trustable_users():
+            trusted_reports = self.passcode_log.get_trustable_reports()
+            trusted_users = self.passcode_log.get_trustable_users()
+            for trusted_uid in trusted_users:
                 if not trusted_uid in self.passcode_log.user_trusted:
                     self.passcode_log.user_trusted.append(trusted_uid)
+            if (portal_index, portal_name, portal_media) in trusted_reports:
+                report_trusted = True
+            if uid in trusted_users:
+                user_trusted = True
+        text = """
+Report recieved.
+User /passcode known to view reports.
+"""
+        text += """
+Your report is trusted.
+""" if report_trusted else ""
+        text += """
+You are trusted.
+""" if user_trusted else ""
         tg.sendMessage({
             "chat_id": chat["id"],
-            "text": "Report recieved, user /passcode known to view reports.",
+            "text": text,
             "reply_parameters": {"message_id": message["message_id"]}
         })
         with self.lock:
