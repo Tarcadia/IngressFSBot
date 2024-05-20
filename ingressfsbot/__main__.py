@@ -15,6 +15,8 @@ from .main_thread import main
 from ._config import (
     CONF_TELEGRAM,
     CONF_TELEGRAM_TOKEN,
+    CONF_PASSCODE,
+    CONF_PASSCODE_ADMIN_UID,
     CONF_LOGGING,
     CONF_LOGGING_VERBOSE_LEVEL,
     CONF_LOGGING_FILE_LEVEL,
@@ -26,11 +28,13 @@ from ._config import (
 @click.command()
 @click.option("--config", "-c",     type=click.Path(exists=True))
 @click.option("--token", "-t",      type=click.STRING)
+@click.option("--admin", "-a",      type=click.STRING)
 @click.option("--logfile",          type=click.Path(dir_okay=False))
 @click.option("--verbose", "-v",    type=click.INT, count=True)
 def cli(
     config=None,
     token=None,
+    admin=None,
     logfile=None,
     verbose=0,
 ):
@@ -40,11 +44,13 @@ def cli(
     logging.info(f"Version {__version__}.")
     logging.info(f"Check {__url__} for more info.")
 
-    if config:
+    if not config is None:
         _config.read_config(config)
-    if token:
+    if not token is None:
         _config.set(CONF_TELEGRAM, CONF_TELEGRAM_TOKEN, token)
-    if logfile:
+    if not admin is None:
+        _config.set(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID, admin)
+    if not logfile is None:
         _config.set(CONF_LOGGING, CONF_LOGGING_FILE_PATH, logfile)
     
     loglevel = _config.getint(CONF_LOGGING, CONF_LOGGING_VERBOSE_LEVEL) - (verbose * 10)

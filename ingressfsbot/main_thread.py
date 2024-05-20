@@ -23,6 +23,7 @@ from ._config import (
     CONF_TELEGRAM_TIMEOUT,
     CONF_PASSCODE,
     CONF_PASSCODE_LOG_FILE,
+    CONF_PASSCODE_ADMIN_UID,
     CONF_PASSCODE_PROTAL_COUNT,
 )
 
@@ -57,6 +58,8 @@ def main():
     passcode_args = {}
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_LOG_FILE):
         passcode_args["log_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_LOG_FILE)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID):
+        passcode_args["admin_uid"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT):
         passcode_args["portal_count"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT)
     passcode_handler = PasscodeHandler(**passcode_args)
