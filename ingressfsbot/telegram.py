@@ -50,10 +50,8 @@ class Telegram:
         headers = {"user-agent": self.user_agent}
         resp = httpx.post(url=url, headers=headers, json=obj, timeout=self.timeout)
         obj = resp.json()
-        if not obj or not "ok" in obj or not obj["ok"]:
-            return
-        if not "result" in obj or not obj["result"]:
-            return
-        return obj["result"]
+        assert obj and "ok" in obj and obj["ok"]
+        if "result" in obj:
+            return obj["result"]
 
 
