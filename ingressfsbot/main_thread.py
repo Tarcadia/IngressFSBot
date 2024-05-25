@@ -25,6 +25,8 @@ from ._config import (
     CONF_PASSCODE_DATA_FILE,
     CONF_PASSCODE_ADMIN_UID,
     CONF_PASSCODE_PROTAL_COUNT,
+    CONF_PASSCODE_SAVE_INTERVAL,
+    CONF_PASSCODE_BROADCAST_INTERVAL,
 )
 
 
@@ -55,13 +57,19 @@ def main():
     tg = Telegram(**telegram_args)
 
 
-    passcode_args = {}
+    passcode_args = {
+        "pool": pool
+    }
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE):
         passcode_args["data_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID):
         passcode_args["admin_uid"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT):
         passcode_args["portal_count"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_SAVE_INTERVAL):
+        passcode_args["save_interval"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_SAVE_INTERVAL)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_BROADCAST_INTERVAL):
+        passcode_args["broadcast_interval"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_BROADCAST_INTERVAL)
     passcode_handler = PasscodeHandler(**passcode_args)
 
 

@@ -14,6 +14,8 @@ from ._config import (
     CONF_PASSCODE_DATA_FILE_DEFAULT,
     CONF_PASSCODE_ADMIN_UID_DEFAULT,
     CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
+    CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
+    CONF_PASSCODE_BROADCAST_INTERVAL_DEFAULT,
 )
 
 
@@ -65,11 +67,15 @@ class PasscodeHandler:
 
     def __init__(
         self,
+        pool: ThreadPoolExecutor,
         data_file = CONF_PASSCODE_DATA_FILE_DEFAULT,
         admin_uid = CONF_PASSCODE_ADMIN_UID_DEFAULT,
         portal_count = CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
+        save_interval = CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
+        broadcast_interval = CONF_PASSCODE_BROADCAST_INTERVAL_DEFAULT,
     ) -> None:
 
+        self.pool = pool
         self.passcode_data = passcode_data.PasscodeData()
         self.data_file = data_file
         self.admin_uid = admin_uid
@@ -81,6 +87,10 @@ class PasscodeHandler:
         
         self.passcode_data = passcode_data.load(data_file)
 
+        self.save_interval = save_interval
+        self.broadcast_interval = broadcast_interval
+        self.last_save_submit = time.time()
+        self.last_broadcast_submit = time.time()
 
     def help(self, tg, message, chat, user, command):
         help_text = """
