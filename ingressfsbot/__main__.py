@@ -17,6 +17,7 @@ from ._config import (
     CONF_TELEGRAM_TOKEN,
     CONF_PASSCODE,
     CONF_PASSCODE_ADMIN_UID,
+    CONF_PASSCODE_DATA_FILE,
     CONF_LOGGING,
     CONF_LOGGING_VERBOSE_LEVEL,
     CONF_LOGGING_FILE_LEVEL,
@@ -29,12 +30,14 @@ from ._config import (
 @click.option("--config", "-c",     type=click.Path(exists=True))
 @click.option("--token", "-t",      type=click.STRING)
 @click.option("--admin", "-a",      type=click.STRING)
+@click.option("--datafile",         type=click.Path(dir_okay=False))
 @click.option("--logfile",          type=click.Path(dir_okay=False))
 @click.option("--verbose", "-v",    type=click.INT, count=True)
 def cli(
     config=None,
     token=None,
     admin=None,
+    datafile=None,
     logfile=None,
     verbose=0,
 ):
@@ -50,6 +53,8 @@ def cli(
         _config.set(CONF_TELEGRAM, CONF_TELEGRAM_TOKEN, token)
     if not admin is None:
         _config.set(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID, admin)
+    if not datafile is None:
+        _config.set(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE, datafile)
     if not logfile is None:
         _config.set(CONF_LOGGING, CONF_LOGGING_FILE_PATH, logfile)
     

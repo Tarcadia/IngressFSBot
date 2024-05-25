@@ -22,7 +22,7 @@ from ._config import (
     CONF_TELEGRAM_USER_AGENT,
     CONF_TELEGRAM_TIMEOUT,
     CONF_PASSCODE,
-    CONF_PASSCODE_LOG_FILE,
+    CONF_PASSCODE_DATA_FILE,
     CONF_PASSCODE_ADMIN_UID,
     CONF_PASSCODE_PROTAL_COUNT,
 )
@@ -56,8 +56,8 @@ def main():
 
 
     passcode_args = {}
-    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_LOG_FILE):
-        passcode_args["log_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_LOG_FILE)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE):
+        passcode_args["data_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID):
         passcode_args["admin_uid"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT):

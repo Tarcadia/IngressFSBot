@@ -5,14 +5,13 @@ logger = logging.getLogger(__name__)
 
 import os
 import shlex
-import json
 import time
 
-from dataclasses import dataclass, field, asdict
+from . import passcode_data
 from threading import Lock
 
 from ._config import (
-    CONF_PASSCODE_LOG_FILE_DEFAULT,
+    CONF_PASSCODE_DATA_FILE_DEFAULT,
     CONF_PASSCODE_ADMIN_UID_DEFAULT,
     CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
 )
@@ -66,23 +65,21 @@ class PasscodeHandler:
 
     def __init__(
         self,
-        log_file = CONF_PASSCODE_LOG_FILE_DEFAULT,
+        data_file = CONF_PASSCODE_DATA_FILE_DEFAULT,
         admin_uid = CONF_PASSCODE_ADMIN_UID_DEFAULT,
         portal_count = CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
     ) -> None:
 
-        self.passcode_log = PasscodeLog()
-        self.log_file = log_file
+        self.passcode_data = passcode_data.PasscodeData()
+        self.data_file = data_file
         self.admin_uid = admin_uid
         self.portal_count = portal_count
         self.lock = Lock()
 
-        if not os.path.exists(log_file):
-            with open(log_file, "w") as fp:
-                json.dump(asdict(self.passcode_log), fp)
+        if not os.path.exists(data_file):
+            passcode_data.dump(data_file, self.passcode_data)
         
-        with open(log_file, "r") as fp:
-            self.passcode_log = PasscodeLog(**json.load(fp))
+        self.passcode_data = passcode_data.load(data_file)
 
 
     def help(self, tg, message, chat, user, command):
@@ -108,21 +105,21 @@ class PasscodeHandler:
         report_trusted = False
         user_trusted = False
         with self.lock:
-            self.passcode_log.user_info[uid] = user
-            if not uid in self.passcode_log.user_reports:
-                self.passcode_log.user_reports[uid] = {}
-            if not portal_index in self.passcode_log.user_reports[uid]:
-                self.passcode_log.user_reports[uid][portal_index] = []
-            self.passcode_log.user_reports[uid][portal_index].append({
+            self.passcode_data.user_info[uid] = user
+            if not uid in self.passcode_data.user_reports:
+                self.passcode_data.user_reports[uid] = {}
+            if not portal_index in self.passcode_data.user_reports[uid]:
+                self.passcode_data.user_reports[uid][portal_index] = []
+            self.passcode_data.user_reports[uid][portal_index].append({
                 "time": time.time(),
                 "name": portal_name,
                 "media": portal_media
             })
-            trusted_reports = self.passcode_log.get_trustable_reports()
-            trusted_users = self.passcode_log.get_trustable_users()
+            trusted_reports = self.passcode_data.get_trustable_reports()
+            trusted_users = self.passcode_data.get_trustable_users()
             for trusted_uid in trusted_users:
-                if not trusted_uid in self.passcode_log.user_trusted:
-                    self.passcode_log.user_trusted.append(trusted_uid)
+                if not trusted_uid in self.passcode_data.user_trusted:
+                    self.passcode_data.user_trusted.append(trusted_uid)
             if (portal_index, portal_name, portal_media) in trusted_reports:
                 report_trusted = True
             if uid in trusted_users:
@@ -143,8 +140,7 @@ You are trusted.
             "reply_parameters": {"message_id": message["message_id"]}
         })
         with self.lock:
-            with open(self.log_file, "w") as fp:
-                json.dump(asdict(self.passcode_log), fp)
+            passcode_data.dump(self.data_file, self.passcode_data)
         return True
 
 
@@ -158,13 +154,13 @@ You are trusted.
         trusted_reports = []
         trusted = False
         with self.lock:
-            self.passcode_log.user_info[uid] = user
-            if not uid in self.passcode_log.user_reports:
-                self.passcode_log.user_reports[uid] = {}
-            trusted = uid in self.passcode_log.user_trusted
-            user_reports = self.passcode_log.get_user_reports(uid)
+            self.passcode_data.user_info[uid] = user
+            if not uid in self.passcode_data.user_reports:
+                self.passcode_data.user_reports[uid] = {}
+            trusted = uid in self.passcode_data.user_trusted
+            user_reports = self.passcode_data.get_user_reports(uid)
             if trusted:
-                trusted_reports = self.passcode_log.get_trustable_reports()
+                trusted_reports = self.passcode_data.get_trustable_reports()
         
         user_reports.sort()
         trusted_reports.sort()
@@ -210,13 +206,13 @@ You are now trusted so providing joined trusted reports:
         uid_to_trust = command[2]
         user_to_trust = {}
         with self.lock:
-            self.passcode_log.user_info[uid] = user
-            if not uid in self.passcode_log.user_reports:
-                self.passcode_log.user_reports[uid] = {}
-            if not uid_to_trust in self.passcode_log.user_trusted:
-                self.passcode_log.user_trusted.append(uid_to_trust)
-            if uid_to_trust in self.passcode_log.user_info:
-                user_to_trust = self.passcode_log.user_info[uid_to_trust]
+            self.passcode_data.user_info[uid] = user
+            if not uid in self.passcode_data.user_reports:
+                self.passcode_data.user_reports[uid] = {}
+            if not uid_to_trust in self.passcode_data.user_trusted:
+                self.passcode_data.user_trusted.append(uid_to_trust)
+            if uid_to_trust in self.passcode_data.user_info:
+                user_to_trust = self.passcode_data.user_info[uid_to_trust]
         
         text = f"""
 Added user {uid_to_trust} to the trusted.
@@ -236,8 +232,7 @@ Currently trusted users:
             "reply_parameters": {"message_id": message["message_id"]}
         })
         with self.lock:
-            with open(self.log_file, "w") as fp:
-                json.dump(asdict(self.passcode_log), fp)
+            passcode_data.dump(self.data_file, self.passcode_data)
         return True
 
 
