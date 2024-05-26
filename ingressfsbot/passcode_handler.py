@@ -7,8 +7,11 @@ import os
 import shlex
 import time
 
-from . import passcode_data
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 from threading import Lock
+
+from . import passcode_data
 
 from ._config import (
     CONF_PASSCODE_DATA_FILE_DEFAULT,
@@ -19,48 +22,101 @@ from ._config import (
 )
 
 
-@dataclass
-class PasscodeLog:
-    image_url: str = ""
-    user_reports: dict[str, dict] = field(default_factory=dict)
-    user_info: dict[str, dict] = field(default_factory=dict)
-    user_trusted: list = field(default_factory=list)
+MESSAGE_CMD_FAILED = """
+Unrecognized command.
+Use "/passcode help" for help.
+"""
 
-    def get_user_reports(self, uid):
-        reports = set()
-        for index in self.user_reports[uid]:
-            entry = (
-                index,
-                self.user_reports[uid][index][-1]["name"],
-                self.user_reports[uid][index][-1]["media"],
-            )
-            reports.add(entry)
-        return list(reports)
+MESSAGE_HELP = """
+/passcode help
+/passcode report <index> <name> <media>
+/passcode unknown
+/passcode status
+"""
 
-    def get_trustable_reports(self):
-        reports = set()
-        trusted_reports = set()
-        for uid in self.user_reports:
-            for index in self.user_reports[uid]:
-                entry = (
-                    index,
-                    self.user_reports[uid][index][-1]["name"],
-                    self.user_reports[uid][index][-1]["media"],
-                )
-                if entry in reports:
-                    trusted_reports.add(entry)
-                reports.add(entry)
-        return list(trusted_reports)
-    
-    def get_trustable_users(self):
-        trusted_users = set()
-        trusted_reports = self.get_trustable_reports()
-        for uid in self.user_reports:
-            user_reports = self.get_user_reports(uid)
-            for entry in user_reports:
-                if entry in trusted_reports:
-                    trusted_users.add(uid)
-        return list(trusted_users)
+MESSAGE_REPORT_RECIEVED = """
+Report recieved.
+Use "/passcode status" to view reports.
+"""
+
+MESSAGE_IMAGE_PATT_RECIEVED = """
+Updated:
+passcode image: {}
+passcode patt: {}
+"""
+
+MESSAGE_TRUST_USER = """
+Added a trusted user:
+{}
+Use "/passcode trusted" to view trusted users.
+"""
+
+MESSAGE_LIST_USER_REPORTS = """
+Your reports:
+====================
+{}
+========EOLS========
+"""
+
+MESSAGE_LIST_TRUSTED_REPORTS = """
+All trusted reports:
+====================
+{}
+========EOLS========
+"""
+
+MESSAGE_LIST_TRUSTED_USER = """
+List trusted users:
+====================
+{}
+========EOLS========
+"""
+
+
+
+def _echo_message(tg, message, text):
+    tg.sendMessage({
+        "chat_id": message["chat"]["id"],
+        "reply_parameters": {"message_id": message["message_id"]},
+        "text": text,
+    })
+
+
+def _with_data_access(method):
+    @wraps(method)
+    def wrapper(self, tg, message, *args, **kwargs):
+        _ret = False
+        with self.lock:
+            _ret = method(self, tg, message, *args, **kwargs)
+        return _ret
+    return wrapper
+
+
+def _with_data_update(method):
+    @wraps(method)
+    def wrapper(self, tg, message, *args, **kwargs):
+        _ret = False
+        with self.lock:
+            _ret = method(self, tg, message, *args, **kwargs)
+            now = time.time()
+            if now < self.last_save_submit + self.save_interval:
+                self.last_save_submit = now
+                self.pool.submit(self.save)
+            if now < self.last_broadcast_submit + self.broadcast_interval:
+                self.last_broadcast_submit = now
+                self.pool.submit(self.broadcast)
+        return _ret
+    return wrapper
+
+
+def _with_admin(method):
+    @wraps(method)
+    def wrapper(self, tg, message, *args, **kwargs):
+        uid = message["from"]["id"]
+        if str(uid) != self.admin_uid:
+            return self.command_failed(tg, message)
+        return method(self, tg, message, *args, **kwargs)
+    return wrapper
 
 
 class PasscodeHandler:
@@ -75,12 +131,12 @@ class PasscodeHandler:
         broadcast_interval = CONF_PASSCODE_BROADCAST_INTERVAL_DEFAULT,
     ) -> None:
 
+        self.lock = Lock()
         self.pool = pool
         self.passcode_data = passcode_data.PasscodeData()
         self.data_file = data_file
         self.admin_uid = admin_uid
         self.portal_count = portal_count
-        self.lock = Lock()
 
         if not os.path.exists(data_file):
             passcode_data.dump(data_file, self.passcode_data)
@@ -92,210 +148,131 @@ class PasscodeHandler:
         self.last_save_submit = time.time()
         self.last_broadcast_submit = time.time()
 
-    def help(self, tg, message, chat, user, command):
-        help_text = """
-/passcode help
-/passcode report <index> <name> <media>
-/passcode unknown
-/passcode known
-"""
-        tg.sendMessage({
-            "chat_id": chat["id"],
-            "text": help_text,
-            "reply_parameters": {"message_id": message["message_id"]}
-        })
-        return True
 
-
-    def report(self, tg, message, chat, user, command):
-        uid = str(user["id"])
-        portal_index = command[2]
-        portal_name = command[3]
-        portal_media = command[4]
-        report_trusted = False
-        user_trusted = False
-        with self.lock:
-            self.passcode_data.user_info[uid] = user
-            if not uid in self.passcode_data.user_reports:
-                self.passcode_data.user_reports[uid] = {}
-            if not portal_index in self.passcode_data.user_reports[uid]:
-                self.passcode_data.user_reports[uid][portal_index] = []
-            self.passcode_data.user_reports[uid][portal_index].append({
-                "time": time.time(),
-                "name": portal_name,
-                "media": portal_media
-            })
-            trusted_reports = self.passcode_data.get_trustable_reports()
-            trusted_users = self.passcode_data.get_trustable_users()
-            for trusted_uid in trusted_users:
-                if not trusted_uid in self.passcode_data.user_trusted:
-                    self.passcode_data.user_trusted.append(trusted_uid)
-            if (portal_index, portal_name, portal_media) in trusted_reports:
-                report_trusted = True
-            if uid in trusted_users:
-                user_trusted = True
-        text = """
-Report recieved.
-User /passcode known to view reports.
-"""
-        text += """
-Your report is trusted.
-""" if report_trusted else ""
-        text += """
-You are trusted.
-""" if user_trusted else ""
-        tg.sendMessage({
-            "chat_id": chat["id"],
-            "text": text,
-            "reply_parameters": {"message_id": message["message_id"]}
-        })
+    def save(self):
+        time.sleep(self.save_interval)
         with self.lock:
             passcode_data.dump(self.data_file, self.passcode_data)
+
+
+    def broadcast(self):
+        time.sleep(self.broadcast_interval)
+        with self.lock:
+            pass
+
+
+    def command_failed(self, tg, message, text = ""):
+        self.pool.submit(_echo_message, tg, message, MESSAGE_CMD_FAILED + text)
         return True
 
 
-    def unknown(self, tg, message, chat, user, command):
-        return
+    def _cmd_help(self, tg, message):
+        self.pool.submit(_echo_message, tg, message, MESSAGE_HELP)
+        return True
+
+
+    @_with_data_update
+    def _cmd_report(self, tg, message, index, name, media):
+        user = message["from"]
+        self.passcode_data.add_report(user, index, name, media)
+        for user in self.passcode_data.get_trustable_users():
+            self.passcode_data.add_trusted_user(user)
+        self.pool.submit(_echo_message, tg, message, MESSAGE_REPORT_RECIEVED)
+        return True
+
+
+    # @_with_data_access
+    # def _cmd_unknown(self, tg, message, chat, user, command):
+    #     return
     
 
-    def known(self, tg, message, chat, user, command):
-        uid = str(user["id"])
+    @_with_data_access
+    def _cmd_status(self, tg, message):
+        user = message["from"]
+        user_trusted = False
         user_reports = []
-        trusted_reports = []
-        trusted = False
-        with self.lock:
-            self.passcode_data.user_info[uid] = user
-            if not uid in self.passcode_data.user_reports:
-                self.passcode_data.user_reports[uid] = {}
-            trusted = uid in self.passcode_data.user_trusted
-            user_reports = self.passcode_data.get_user_reports(uid)
-            if trusted:
-                trusted_reports = self.passcode_data.get_trustable_reports()
+        trustable_reports = []
+        user_trusted = self.passcode_data.get_user_trusted(user)
+        user_reports = self.passcode_data.get_user_reports(user)
+        if user_trusted:
+            trustable_reports = self.passcode_data.get_trustable_reports()
         
-        user_reports.sort()
-        trusted_reports.sort()
-
-        user_reports_text = "\n".join(
+        text_list_user_reports = "\n".join(
             f"{_index}\t{_name}\t{_media}"
             for _index, _name, _media in user_reports
-        ) if user_reports else "No reports found."
-        trusted_reports_text = "\n".join(
+        )
+        
+        text_list_trustable_reports = "\n".join(
             f"{_index}\t{_name}\t{_media}"
-            for _index, _name, _media in trusted_reports
-        ) if trusted_reports else "No reports found."
+            for _index, _name, _media in trustable_reports
+        )
 
-        text = f"""
-Your reports:
-{user_reports_text}
-"""
-        text += f"""
-======== TRUSTED ONLY ========
-You are now trusted so providing joined trusted reports:
-{trusted_reports_text}
-""" if trusted else ""
-
-        tg.sendMessage({
-            "chat_id": chat["id"],
-            "text": text,
-            "reply_parameters": {"message_id": message["message_id"]}
-        })
+        self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_USER_REPORTS.format(text_list_user_reports))
+        if user_trusted:
+            self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTED_REPORTS.format(text_list_trustable_reports))
         
         return True
-    
 
-    def trust(self, tg, message, chat, user, command):
-        uid = str(user["id"])
-        if uid != self.admin_uid:
-            tg.sendMessage({
-                "chat_id": chat["id"],
-                "text": "You are not authorized to do so.",
-                "reply_parameters": {"message_id": message["message_id"]}
-            })
-            return
-        
-        uid_to_trust = command[2]
-        user_to_trust = {}
-        with self.lock:
-            self.passcode_data.user_info[uid] = user
-            if not uid in self.passcode_data.user_reports:
-                self.passcode_data.user_reports[uid] = {}
-            if not uid_to_trust in self.passcode_data.user_trusted:
-                self.passcode_data.user_trusted.append(uid_to_trust)
-            if uid_to_trust in self.passcode_data.user_info:
-                user_to_trust = self.passcode_data.user_info[uid_to_trust]
-        
-        text = f"""
-Added user {uid_to_trust} to the trusted.
-"""
-        text += f"""
-Recognized user info:
-{user_to_trust}
-""" if user_to_trust else ""
-        text += f"""
-Currently trusted users:
-{"\n".join(self.passcode_log.user_trusted)}
-"""
 
-        tg.sendMessage({
-            "chat_id": chat["id"],
-            "text": text,
-            "reply_parameters": {"message_id": message["message_id"]}
-        })
-        with self.lock:
-            passcode_data.dump(self.data_file, self.passcode_data)
+    @_with_admin
+    @_with_data_update
+    def _cmd_image(self, tg, message, url):
+        self.passcode_data.set_passcode_url(url)
+        self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
+            self.passcode_data.get_passcode_url(),
+            self.passcode_data.get_passcode_patt(),
+        ))
         return True
 
 
-    def failed_command(self, tg, message, chat, user, command):
-        help_text = """
-Unrecognized command, check for the following commands:
-/passcode help
-/passcode report <index> <name> <media>
-/passcode unknown
-/passcode known
-"""
-        tg.sendMessage({
-            "chat_id": chat["id"],
-            "text": help_text,
-            "reply_parameters": {"message_id": message["message_id"]}
-        })
+    @_with_admin
+    @_with_data_update
+    def _cmd_patt(self, tg, message, patt):
+        self.passcode_data.set_passcode_patt(patt)
+        self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
+            self.passcode_data.get_passcode_url(),
+            self.passcode_data.get_passcode_patt(),
+        ))
         return True
-    
+
+
+    @_with_admin
+    @_with_data_update
+    def _cmd_trust(self, tg, message, username):
+        user = self.passcode_data.get_user_by_username(username)
+        self.passcode_data.add_trusted_user(user)
+        self.pool.submit(_echo_message, tg, message, MESSAGE_TRUST_USER.format(f"{user['id']} : @{user['username']}"))
+        return True
+
+
+    @_with_admin
+    @_with_data_access
+    def _cmd_trusted(self, tg, message):
+        text_list_users = "\n".join(
+            f"{user['id']} : @{user['username']}"
+            for user in self.passcode_data.get_trusted_users()
+        )
+        self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTED_USER.format(text_list_users))
+        return True
+
 
     def handle(self, tg, update):
-        if not "message" in update or not update["message"]:
-            return
-        if not "chat" in update["message"] or not update["message"]["chat"]:
-            return
-        if not "from" in update["message"] or not update["message"]["from"]:
-            return
-        if not "text" in update["message"] or not update["message"]["text"]:
-            return
-        
-        message = update["message"]
-        chat = update["message"]["chat"]
-        user = update["message"]["from"]
-        text = update["message"]["text"]
-        command = shlex.split(text)
+        assert "message" in update and update["message"]
+        assert "chat" in update["message"] and update["message"]["chat"]
+        assert "from" in update["message"] and update["message"]["from"]
+        assert "text" in update["message"] and update["message"]["text"]
+        self.passcode_data.add_user(update["message"]["from"])
+        command = shlex.split(update["message"]["text"])
 
-        if len(command) < 1:
-            return
-        
-        if not command[0] == "/passcode":
-            return
-        
+        if len(command) < 1 or command[0] != "/passcode":
+            return False
+
         if len(command) < 2:
-            return self.failed_command(tg, message, chat, user, command)
-        elif command[1] == "help":
-            return self.help(tg, message, chat, user, command)
-        elif command[1] == "report" and len(command) == 5:
-            return self.report(tg, message, chat, user, command)
-        elif command[1] == "unknown" and len(command) == 2:
-            return self.unknown(tg, message, chat, user, command)
-        elif command[1] == "known" and len(command) == 2:
-            return self.known(tg, message, chat, user, command)
-        elif command[1] == "trust" and len(command) == 3:
-            return self.trust(tg, message, chat, user, command)
+            return self.command_failed(tg, update["message"])
         else:
-            return self.failed_command(tg, message, chat, user, command)
+            try:
+                cmd_method = "_cmd_" + command[1]
+                return getattr(self, cmd_method)(tg, update["message"], *command[2:])
+            except Exception as e:
+                return self.command_failed(tg, update["message"], text = str(e))
 
