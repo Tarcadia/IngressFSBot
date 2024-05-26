@@ -108,15 +108,15 @@ class PasscodeData:
 
     def get_trustable(self, min_correct=3, min_count=3, min_rate=0.5):
         trustable_users = []
-        users = {}
+        users_stat = {}
         trustable_reports = self.get_trustable_reports(min_count, min_rate)
         _trustable_reports = {_index: (_name, _media) for _index, _name, _media in trustable_reports}
         for uid in self.user_reports:
-            users[uid] = 0
+            users_stat[uid] = 0
             for index in self.user_reports[uid]:
-                if _trustable_reports[index][1] == self.user_reports[uid][index][-1]["media"]:
-                    users[uid] += 1
-            if users[uid] > min_correct:
+                if index in _trustable_reports and _trustable_reports[index][1] == self.user_reports[uid][index][-1]["media"]:
+                    users_stat[uid] += 1
+            if users_stat[uid] > min_correct:
                 trustable_users.append(self.user_info[uid])
         return trustable_reports, trustable_users
 
@@ -137,27 +137,28 @@ class PasscodeData:
                     names[index] = []
                 if not index in medias:
                     medias[index] = []
-                names[index].append((index, self.user_reports[uid][index][-1]["name"]))
-                medias[index].append((index, self.user_reports[uid][index][-1]["media"]))
+                names[index].append(self.user_reports[uid][index][-1]["name"])
+                medias[index].append(self.user_reports[uid][index][-1]["media"])
         trustable_names = {}
         trustable_medias = {}
         trustable_reports = set()
         for index in indexes:
             for name in set(names[index]):
                 _count = names[index].count(name)
-                if (not index in trustable_names and _count > min_count and _count > min_rate * len(names[index])):
+                if (not index in trustable_names and _count >= min_count and _count >= min_rate * len(names[index])):
                     trustable_names[index] = name
                 elif (index in trustable_names and _count > names[index].count(trustable_names[index])):
                     trustable_names[index] = name
             for media in set(medias[index]):
                 _count = medias[index].count(media)
-                if (not index in trustable_medias and _count > min_count and _count > min_rate * len(medias[index])):
+                if (not index in trustable_medias and _count >= min_count and _count > min_rate * len(medias[index])):
                     trustable_medias[index] = media
                 elif (index in trustable_medias and _count > medias[index].count(trustable_medias[index])):
                     trustable_medias[index] = media
             _name = trustable_names[index] if index in trustable_names else ""
             _media = trustable_medias[index] if index in trustable_medias else ""
-            _report = (index, _name, _media)
-            trustable_reports.add(_report)
+            if _name or _media:
+                _report = (index, _name, _media)
+                trustable_reports.add(_report)
         return list(trustable_reports)
 
