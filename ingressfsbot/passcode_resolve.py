@@ -36,6 +36,9 @@ def generate_passcode_string(patt, reports):
     for _media in patt_keywords:
         if "$" in patt_list:
             patt_list[patt_list.index("$")] = _media
+    for idx in range(len(patt_list)):
+        if patt_list[idx] in {"@", "#", "$"}:
+            patt_list[idx] = "*"
     return "".join(patt_list)
 
 
