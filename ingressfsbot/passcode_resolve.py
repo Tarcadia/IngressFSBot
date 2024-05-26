@@ -43,18 +43,18 @@ def generate_passcode_string(patt, reports):
 
 
 def generate_passcode_image(url, reports, file_image_dump, file_image_dump_format, x_offset=640, y_offset=145, y_height=300):
+    im_io = io.BytesIO()
     with Image.open(io.BytesIO(httpx.get(url).content)) as im:
         font = ImageFont.truetype("simhei", size=y_height * 0.6)
         draw = ImageDraw.Draw(im)
-        im_io = io.BytesIO()
         for _index, _name, _media in reports:
             if len(_name) > 10:
                 _name = _name[:8] + "..."
             text = f"{_name} : {_media}"
             x = x_offset
-            y = y_offset + y_height * (_index - 1 + 0.2)
+            y = y_offset + y_height * (int(_index) - 1 + 0.2)
             draw.text((x, y), text=text, fill=(255, 0, 0), font=font)
-            im.save(im_io, format=file_image_dump_format)
-            im.save(file_image_dump)
-        return im_io.read()
+        im.save(im_io, format=file_image_dump_format)
+        im.save(file_image_dump)
+    return im_io
 
