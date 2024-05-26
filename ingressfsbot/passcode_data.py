@@ -22,11 +22,15 @@ def dump(filename, data):
 
 @dataclass
 class PasscodeData:
-    passcode_url:      str                 = ""
+    passcode_url:   str                 = ""
     passcode_patt:  str                 = ""
     user_reports:   dict[str, dict]     = field(default_factory=dict)
     user_trusted:   list                = field(default_factory=list)
     user_info:      dict[str, dict]     = field(default_factory=dict)
+
+    min_correct:    int     = 3
+    min_count:      int     = 3
+    min_rate:       int     = 0.5
 
 
     def set_passcode_url(self, url):
@@ -80,9 +84,9 @@ class PasscodeData:
         return uid in self.user_trusted
 
 
-    def get_user_trustable(self, user, min_correct=3, min_count=3, min_rate=0.5):
+    def get_user_trustable(self, user):
         uid = str(user["id"])
-        trustable_users = self.get_trustable_users(min_correct, min_count, min_rate)
+        trustable_users = self.get_trustable_users()
         for user in trustable_users:
             if str(user["id"]) == uid:
                 return True
@@ -106,27 +110,27 @@ class PasscodeData:
         return [self.user_info[uid] for uid in set(self.user_trusted)]
 
 
-    def get_trustable(self, min_correct=3, min_count=3, min_rate=0.5):
+    def get_trustable(self):
         trustable_users = []
         users_stat = {}
-        trustable_reports = self.get_trustable_reports(min_count, min_rate)
+        trustable_reports = self.get_trustable_reports()
         _trustable_reports = {_index: (_name, _media) for _index, _name, _media in trustable_reports}
         for uid in self.user_reports:
             users_stat[uid] = 0
             for index in self.user_reports[uid]:
                 if index in _trustable_reports and _trustable_reports[index][1] == self.user_reports[uid][index][-1]["media"]:
                     users_stat[uid] += 1
-            if users_stat[uid] > min_correct:
+            if users_stat[uid] > self.min_correct:
                 trustable_users.append(self.user_info[uid])
         return trustable_reports, trustable_users
 
 
-    def get_trustable_users(self, min_correct=3, min_count=3, min_rate=0.5):
-        _, trustable_users = self.get_trustable(min_correct, min_count, min_rate)
+    def get_trustable_users(self):
+        _, trustable_users = self.get_trustable()
         return trustable_users
 
 
-    def get_trustable_reports(self, min_count=3, min_rate=0.5):
+    def get_trustable_reports(self):
         names = {}
         medias = {}
         indexes = set()
@@ -145,13 +149,13 @@ class PasscodeData:
         for index in indexes:
             for name in set(names[index]):
                 _count = names[index].count(name)
-                if (not index in trustable_names and _count >= min_count and _count >= min_rate * len(names[index])):
+                if (not index in trustable_names and _count >= self.min_count and _count >= self.min_rate * len(names[index])):
                     trustable_names[index] = name
                 elif (index in trustable_names and _count > names[index].count(trustable_names[index])):
                     trustable_names[index] = name
             for media in set(medias[index]):
                 _count = medias[index].count(media)
-                if (not index in trustable_medias and _count >= min_count and _count > min_rate * len(medias[index])):
+                if (not index in trustable_medias and _count >= self.min_count and _count > self.min_rate * len(medias[index])):
                     trustable_medias[index] = media
                 elif (index in trustable_medias and _count > medias[index].count(trustable_medias[index])):
                     trustable_medias[index] = media
