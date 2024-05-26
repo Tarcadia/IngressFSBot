@@ -192,10 +192,12 @@ class PasscodeHandler:
         user_trusted = False
         user_reports = []
         trustable_reports = []
+        trustable_users = []
         user_trusted = self.passcode_data.get_user_trusted(user)
         user_reports = self.passcode_data.get_user_reports(user)
-        if user_trusted:
-            trustable_reports = self.passcode_data.get_trustable_reports()
+        trustable_reports, trustable_users = self.passcode_data.get_trustable()
+        for user in trustable_users:
+            self.passcode_data.add_trusted_user(user)
         
         text_list_user_reports = "\n".join(
             f"{_index}\t{_name}\t{_media}"
