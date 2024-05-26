@@ -80,8 +80,12 @@ class PasscodeData:
         return uid in self.user_trusted
 
 
-    def get_user_trustable(self, user):
+    def get_user_trustable(self, user, min_correct=3, min_count=3, min_rate=0.5):
         uid = str(user["id"])
+        trustable_users = self.get_trustable_users(min_correct, min_count, min_rate)
+        for user in trustable_users:
+            if str(user["id"]) == uid:
+                return True
         return False
 
 
@@ -102,18 +106,24 @@ class PasscodeData:
         return [self.user_info[uid] for uid in set(self.user_trusted)]
 
 
-    def get_trustable_users(self, min_correct=3, min_count=3, min_rate=0.5):
-        trusted_users = []
+    def get_trustable(self, min_correct=3, min_count=3, min_rate=0.5):
+        trustable_users = []
         users = {}
-        _trustable_reports = {_index: (_name, _media) for _index, _name, _media in self.get_trustable_reports(min_count, min_rate)}
+        trustable_reports = self.get_trustable_reports(min_count, min_rate)
+        _trustable_reports = {_index: (_name, _media) for _index, _name, _media in trustable_reports}
         for uid in self.user_reports:
             users[uid] = 0
             for index in self.user_reports[uid]:
                 if _trustable_reports[index][1] == self.user_reports[uid][index][-1]["media"]:
                     users[uid] += 1
             if users[uid] > min_correct:
-                trusted_users.append(self.user_info[uid])
-        return trusted_users
+                trustable_users.append(self.user_info[uid])
+        return trustable_reports, trustable_users
+
+
+    def get_trustable_users(self, min_correct=3, min_count=3, min_rate=0.5):
+        _, trustable_users = self.get_trustable(min_correct, min_count, min_rate)
+        return trustable_users
 
 
     def get_trustable_reports(self, min_count=3, min_rate=0.5):
