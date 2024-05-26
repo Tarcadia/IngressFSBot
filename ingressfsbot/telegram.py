@@ -36,19 +36,33 @@ class Telegram:
 
     def __getattr__(self, __name: str) -> Any:
         @wraps(self.querymethod)
-        def wrapper(obj: dict | None = None):
-            return self.query(__name, obj=obj)
+        def wrapper(obj=None, files=None):
+            if not files:
+                return self.query_json(__name, obj=obj)
+            else:
+                return self.query_form(__name, obj=obj, files=files)
         return wrapper
 
 
-    def querymethod(self, obj: dict | None = None):
+    def querymethod(self, obj: dict | None = None, files: dict | None = None):
         pass
 
 
-    def query(self, method, obj=None):
+    def query_json(self, method, obj=None):
         url = self.url_bot + self.token + f"/{method}"
         headers = {"user-agent": self.user_agent}
         resp = httpx.post(url=url, headers=headers, json=obj, timeout=self.timeout)
+        obj = resp.json()
+        if not obj["ok"]:
+            raise Exception(f"ERRORCODE {obj['error_code']} {obj['description']}")
+        if "result" in obj:
+            return obj["result"]
+
+
+    def query_form(self, method, obj=None, files=None):
+        url = self.url_bot + self.token + f"/{method}"
+        headers = {"user-agent": self.user_agent}
+        resp = httpx.post(url=url, headers=headers, data=obj, files=files, timeout=self.timeout)
         obj = resp.json()
         if not obj["ok"]:
             raise Exception(f"ERRORCODE {obj['error_code']} {obj['description']}")
