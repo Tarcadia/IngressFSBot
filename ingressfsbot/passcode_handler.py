@@ -60,8 +60,8 @@ Your reports:
 ========EOLS========
 """
 
-MESSAGE_LIST_TRUSTED_REPORTS = """
-All trusted reports:
+MESSAGE_LIST_TRUSTABLE_REPORTS = """
+All trustable reports:
 ====================
 {}
 ========EOLS========
@@ -219,7 +219,7 @@ class PasscodeHandler:
 
         self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_USER_REPORTS.format(text_list_user_reports))
         if user_trusted:
-            self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTED_REPORTS.format(text_list_trustable_reports))
+            self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTABLE_REPORTS.format(text_list_trustable_reports))
         
         return True
 
