@@ -99,10 +99,10 @@ def _with_data_update(method):
         with self.lock:
             _ret = method(self, tg, message, *args, **kwargs)
             now = time.time()
-            if now < self.last_save_submit + self.save_interval:
+            if now > self.last_save_submit + self.save_interval:
                 self.last_save_submit = now
                 self.pool.submit(self.save)
-            if now < self.last_broadcast_submit + self.broadcast_interval:
+            if now > self.last_broadcast_submit + self.broadcast_interval:
                 self.last_broadcast_submit = now
                 self.pool.submit(self.broadcast)
         return _ret
