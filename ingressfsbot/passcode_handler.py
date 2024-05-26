@@ -12,6 +12,8 @@ from functools import wraps
 from threading import Lock
 
 from . import passcode_data
+from . import passcode_resolve
+from .telegram import Telegram
 
 from ._config import (
     CONF_PASSCODE_DATA_FILE_DEFAULT,
@@ -74,6 +76,15 @@ List trusted users:
 ========EOLS========
 """
 
+MESSAGE_BROADCAST_PASSCODE = """
+Based on current passcode media info we get, we have the trustable reports below:
+====================
+{}
+========EOLS========
+
+Passcode guess is:
+{}
+"""
 
 
 def _echo_message(tg, message, text):
@@ -121,6 +132,8 @@ def _with_admin(method):
     return wrapper
 
 
+
+
 class PasscodeHandler:
 
     def __init__(
@@ -158,6 +171,7 @@ class PasscodeHandler:
 
 
     def save(self):
+        logger.info(f"Preparing dumping data...")
         time.sleep(self.save_interval)
         logger.info(f"Dumping data to {self.data_file}.")
         with self.lock:
@@ -165,10 +179,51 @@ class PasscodeHandler:
 
 
     def broadcast(self):
+        logger.info(f"Preparing broadcasting data...")
         time.sleep(self.broadcast_interval)
-        logger.info(f"Broadcasting data to {self.data_file}.")
+        logger.info(f"Broadcasting data.")
+        file_image_dump = self.image_file + time.strftime("_%Y%m%d%H%M%S") + f".{self.image_format}"
         with self.lock:
-            pass
+            trustable_reports, trustable_users = self.passcode_data.get_trustable()
+            for user in trustable_users:
+                self.passcode_data.add_trusted_user(user)
+            if self.admin_uid in self.passcode_data.user_info:
+                user_admin = self.passcode_data.user_info[self.admin_uid]
+            passcode_string = passcode_resolve.generate_passcode_string(
+                self.passcode_data.get_passcode_patt(),
+                trustable_reports,
+            )
+            passcode_image = passcode_resolve.generate_passcode_image(
+                self.passcode_data.get_passcode_url(),
+                trustable_reports,
+                file_image_dump=file_image_dump,
+                file_image_dump_format=self.image_format,
+            )
+        
+        text_list_trustable_reports = "\n".join(
+            f"{_index}\t{_name}\t{_media}"
+            for _index, _name, _media in trustable_reports
+        )
+
+        if self.broadcaster:
+            self.broadcaster.sendMessage({
+                "chat_id": user_admin["id"],
+                "text": MESSAGE_BROADCAST_PASSCODE.format(text_list_trustable_reports, passcode_string),
+            })
+            resp = self.broadcaster.sendPhoto(
+                {"chat_id": user_admin["id"]},
+                files={"photo": passcode_image},
+            )
+            photo_file_id = resp["photo"][-1]["file_id"]
+            # for user in self.passcode_data.get_trusted_users():
+            #     self.pool.submit(self.broadcaster.sendMessage, {
+            #         "chat_id": user["id"],
+            #         "text": MESSAGE_BROADCAST_PASSCODE.format(text_list_trustable_reports, passcode_string),
+            #     })
+            #     self.pool.submit(self.broadcaster.sendPhoto, {
+            #         "chat_id": user["id"],
+            #         "photo": photo_file_id,
+            #     })
 
 
     def command_failed(self, tg, message, text = ""):
@@ -266,6 +321,13 @@ class PasscodeHandler:
         )
         self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTED_USER.format(text_list_users))
         return True
+
+
+    @_with_admin
+    @_with_data_access
+    def _cmd_broadcast(self, tg, message):
+        self.pool.submit(_echo_message, tg, message, "Preparing Broadcast data...")
+        self.pool.submit(self.broadcast)
 
 
     def handle(self, tg, update):
