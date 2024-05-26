@@ -151,12 +151,14 @@ class PasscodeHandler:
 
     def save(self):
         time.sleep(self.save_interval)
+        logger.info(f"Dumping data to {self.data_file}.")
         with self.lock:
             passcode_data.dump(self.data_file, self.passcode_data)
 
 
     def broadcast(self):
         time.sleep(self.broadcast_interval)
+        logger.info(f"Broadcasting data to {self.data_file}.")
         with self.lock:
             pass
 
