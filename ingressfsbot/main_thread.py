@@ -60,7 +60,8 @@ def main():
 
 
     passcode_args = {
-        "pool": pool
+        "pool": pool,
+        "broadcaster": tg,
     }
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE):
         passcode_args["data_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE)

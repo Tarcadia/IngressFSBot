@@ -126,6 +126,7 @@ class PasscodeHandler:
     def __init__(
         self,
         pool: ThreadPoolExecutor,
+        broadcaster: Telegram,
         data_file = CONF_PASSCODE_DATA_FILE_DEFAULT,
         image_file = CONF_PASSCODE_IMAGE_FILE_DEFAULT,
         image_formate = CONF_PASSCODE_IMAGE_FORMAT_DEFAULT,
@@ -137,6 +138,7 @@ class PasscodeHandler:
 
         self.lock = Lock()
         self.pool = pool
+        self.broadcaster = broadcaster
         self.passcode_data = passcode_data.PasscodeData()
         self.data_file = data_file
         self.image_file = image_file
