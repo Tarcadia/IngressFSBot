@@ -15,6 +15,8 @@ from . import passcode_data
 
 from ._config import (
     CONF_PASSCODE_DATA_FILE_DEFAULT,
+    CONF_PASSCODE_IMAGE_FILE_DEFAULT,
+    CONF_PASSCODE_IMAGE_FORMAT_DEFAULT,
     CONF_PASSCODE_ADMIN_UID_DEFAULT,
     CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
     CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
@@ -125,6 +127,8 @@ class PasscodeHandler:
         self,
         pool: ThreadPoolExecutor,
         data_file = CONF_PASSCODE_DATA_FILE_DEFAULT,
+        image_file = CONF_PASSCODE_IMAGE_FILE_DEFAULT,
+        image_formate = CONF_PASSCODE_IMAGE_FORMAT_DEFAULT,
         admin_uid = CONF_PASSCODE_ADMIN_UID_DEFAULT,
         portal_count = CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
         save_interval = CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
@@ -135,6 +139,8 @@ class PasscodeHandler:
         self.pool = pool
         self.passcode_data = passcode_data.PasscodeData()
         self.data_file = data_file
+        self.image_file = image_file
+        self.image_format = image_formate
         self.admin_uid = admin_uid
         self.portal_count = portal_count
 

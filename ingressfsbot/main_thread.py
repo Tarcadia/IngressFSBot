@@ -23,6 +23,8 @@ from ._config import (
     CONF_TELEGRAM_TIMEOUT,
     CONF_PASSCODE,
     CONF_PASSCODE_DATA_FILE,
+    CONF_PASSCODE_IMAGE_FILE,
+    CONF_PASSCODE_IMAGE_FORMAT,
     CONF_PASSCODE_ADMIN_UID,
     CONF_PASSCODE_PROTAL_COUNT,
     CONF_PASSCODE_SAVE_INTERVAL,
@@ -62,6 +64,10 @@ def main():
     }
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE):
         passcode_args["data_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_DATA_FILE)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_IMAGE_FILE):
+        passcode_args["image_file"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_IMAGE_FILE)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_IMAGE_FORMAT):
+        passcode_args["image_formate"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_IMAGE_FORMAT)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID):
         passcode_args["admin_uid"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT):
