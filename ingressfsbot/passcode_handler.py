@@ -215,15 +215,15 @@ class PasscodeHandler:
                 files={"photo": passcode_image},
             )
             photo_file_id = resp["photo"][-1]["file_id"]
-            # for user in self.passcode_data.get_trusted_users():
-            #     self.pool.submit(self.broadcaster.sendMessage, {
-            #         "chat_id": user["id"],
-            #         "text": MESSAGE_BROADCAST_PASSCODE.format(text_list_trustable_reports, passcode_string),
-            #     })
-            #     self.pool.submit(self.broadcaster.sendPhoto, {
-            #         "chat_id": user["id"],
-            #         "photo": photo_file_id,
-            #     })
+            for user in self.passcode_data.get_trusted_users():
+                self.pool.submit(self.broadcaster.sendMessage, {
+                    "chat_id": user["id"],
+                    "text": MESSAGE_BROADCAST_PASSCODE.format(text_list_trustable_reports, passcode_string),
+                })
+                self.pool.submit(self.broadcaster.sendPhoto, {
+                    "chat_id": user["id"],
+                    "photo": photo_file_id,
+                })
 
 
     def command_failed(self, tg, message, text = ""):
