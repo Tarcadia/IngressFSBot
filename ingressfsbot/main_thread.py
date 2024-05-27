@@ -27,7 +27,7 @@ from ._config import (
     CONF_PASSCODE_IMAGE_FORMAT,
     CONF_PASSCODE_ADMIN_UID,
     CONF_PASSCODE_PROTAL_COUNT,
-    CONF_PASSCODE_SAVE_INTERVAL,
+    CONF_PASSCODE_DUMP_INTERVAL,
     CONF_PASSCODE_BROADCAST_INTERVAL,
 )
 
@@ -73,8 +73,8 @@ def main():
         passcode_args["admin_uid"] = _config.get(CONF_PASSCODE, CONF_PASSCODE_ADMIN_UID)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT):
         passcode_args["portal_count"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_PROTAL_COUNT)
-    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_SAVE_INTERVAL):
-        passcode_args["save_interval"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_SAVE_INTERVAL)
+    if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_DUMP_INTERVAL):
+        passcode_args["dump_interval"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_DUMP_INTERVAL)
     if _config.has_option(CONF_PASSCODE, CONF_PASSCODE_BROADCAST_INTERVAL):
         passcode_args["broadcast_interval"] = _config.getint(CONF_PASSCODE, CONF_PASSCODE_BROADCAST_INTERVAL)
     passcode_handler = PasscodeHandler(**passcode_args)

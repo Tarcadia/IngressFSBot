@@ -21,7 +21,7 @@ from ._config import (
     CONF_PASSCODE_IMAGE_FORMAT_DEFAULT,
     CONF_PASSCODE_ADMIN_UID_DEFAULT,
     CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
-    CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
+    CONF_PASSCODE_DUMP_INTERVAL_DEFAULT,
     CONF_PASSCODE_BROADCAST_INTERVAL_DEFAULT,
 )
 
@@ -112,9 +112,9 @@ def _with_data_update(method):
         with self.lock:
             _ret = method(self, tg, message, *args, **kwargs)
             now = time.time()
-            if now > self.last_save_submit + self.save_interval:
-                self.last_save_submit = now
-                self.pool.submit(self.save)
+            if now > self.last_dump_submit + self.dump_interval:
+                self.last_dump_submit = now
+                self.pool.submit(self.dump)
             if now > self.last_broadcast_submit + self.broadcast_interval:
                 self.last_broadcast_submit = now
                 self.pool.submit(self.broadcast)
@@ -145,7 +145,7 @@ class PasscodeHandler:
         image_formate = CONF_PASSCODE_IMAGE_FORMAT_DEFAULT,
         admin_uid = CONF_PASSCODE_ADMIN_UID_DEFAULT,
         portal_count = CONF_PASSCODE_PROTAL_COUNT_DEFAULT,
-        save_interval = CONF_PASSCODE_SAVE_INTERVAL_DEFAULT,
+        dump_interval = CONF_PASSCODE_DUMP_INTERVAL_DEFAULT,
         broadcast_interval = CONF_PASSCODE_BROADCAST_INTERVAL_DEFAULT,
     ) -> None:
 
@@ -164,15 +164,15 @@ class PasscodeHandler:
         
         self.passcode_data = passcode_data.load(data_file)
 
-        self.save_interval = save_interval
+        self.dump_interval = dump_interval
         self.broadcast_interval = broadcast_interval
-        self.last_save_submit = time.time()
+        self.last_dump_submit = time.time()
         self.last_broadcast_submit = time.time()
 
 
-    def save(self):
+    def dump(self):
         logger.info(f"Preparing dumping data...")
-        time.sleep(self.save_interval)
+        time.sleep(self.dump_interval)
         logger.info(f"Dumping data to {self.data_file}.")
         with self.lock:
             passcode_data.dump(self.data_file, self.passcode_data)
