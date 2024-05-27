@@ -95,31 +95,27 @@ def _echo_message(tg, message, text):
     })
 
 
-def _with_data_access(method):
-    @wraps(method)
-    def wrapper(self, tg, message, *args, **kwargs):
-        _ret = False
-        with self.lock:
-            _ret = method(self, tg, message, *args, **kwargs)
-        return _ret
-    return wrapper
-
-
-def _with_data_update(method):
-    @wraps(method)
-    def wrapper(self, tg, message, *args, **kwargs):
-        _ret = False
-        with self.lock:
-            _ret = method(self, tg, message, *args, **kwargs)
-            now = time.time()
-            if now > self.last_dump_submit + self.dump_interval:
-                self.last_dump_submit = now
-                self.pool.submit(self.dump)
-            if now > self.last_broadcast_submit + self.broadcast_interval:
-                self.last_broadcast_submit = now
-                self.pool.submit(self.broadcast)
-        return _ret
-    return wrapper
+def _with_data(do_dump=False, do_broadcast=False):
+    def _decorator(method):
+        @wraps(method)
+        def wrapper(self, tg, message, *args, **kwargs):
+            _ret = False
+            with self.lock:
+                _ret = method(self, tg, message, *args, **kwargs)
+                now = time.time()
+                if do_dump and now > self.cache_last_dump:
+                    self.pool.submit(self.dump)
+                if do_broadcast and now > self.cache_last_broadcast:
+                    cache_trustable_reports = tuple(self.passcode_data.get_trustable_reports())
+                    if (
+                        (cache_trustable_reports != self.cache_last_reports_submit) and
+                        (cache_trustable_reports != self.cache_last_reports_send)
+                    ):
+                        self.cache_last_reports_submit = cache_trustable_reports
+                        self.pool.submit(self.broadcast)
+            return _ret
+        return wrapper
+    return _decorator
 
 
 def _with_admin(method):
@@ -236,7 +232,7 @@ class PasscodeHandler:
         return True
 
 
-    @_with_data_update
+    @_with_data(do_dump=True, do_broadcast=True)
     def _cmd_report(self, tg, message, index, name, media):
         user = message["from"]
         self.passcode_data.add_report(user, index, name, media)
@@ -251,7 +247,7 @@ class PasscodeHandler:
     #     return
     
 
-    @_with_data_access
+    @_with_data()
     def _cmd_status(self, tg, message):
         user = message["from"]
         user_trusted = False
@@ -282,7 +278,7 @@ class PasscodeHandler:
 
 
     @_with_admin
-    @_with_data_update
+    @_with_data(do_dump=True)
     def _cmd_image(self, tg, message, url):
         self.passcode_data.set_passcode_url(url)
         self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
@@ -293,7 +289,7 @@ class PasscodeHandler:
 
 
     @_with_admin
-    @_with_data_update
+    @_with_data(do_dump=True)
     def _cmd_patt(self, tg, message, patt):
         self.passcode_data.set_passcode_patt(patt)
         self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
@@ -304,7 +300,7 @@ class PasscodeHandler:
 
 
     @_with_admin
-    @_with_data_update
+    @_with_data(do_dump=True)
     def _cmd_trust(self, tg, message, username):
         user = self.passcode_data.get_user_by_username(username)
         self.passcode_data.add_trusted_user(user)
@@ -313,7 +309,7 @@ class PasscodeHandler:
 
 
     @_with_admin
-    @_with_data_access
+    @_with_data()
     def _cmd_trusted(self, tg, message):
         text_list_users = "\n".join(
             f"{user['id']} : @{user['username']}"
@@ -324,7 +320,7 @@ class PasscodeHandler:
 
 
     @_with_admin
-    @_with_data_access
+    @_with_data()
     def _cmd_broadcast(self, tg, message):
         self.pool.submit(_echo_message, tg, message, "Preparing Broadcast data...")
         self.pool.submit(self.broadcast)
