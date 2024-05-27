@@ -118,7 +118,7 @@ class PasscodeData:
         for uid in self.user_reports:
             users_stat[uid] = 0
             for index in self.user_reports[uid]:
-                if index in _trustable_reports and _trustable_reports[index][1] == self.user_reports[uid][index][-1]["media"]:
+                if index in _trustable_reports and _trustable_reports[index][1].lower() == self.user_reports[uid][index][-1]["media"].lower():
                     users_stat[uid] += 1
             if users_stat[uid] > self.min_correct:
                 trustable_users.append(self.user_info[uid])
