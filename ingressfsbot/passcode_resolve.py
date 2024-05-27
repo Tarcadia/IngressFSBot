@@ -19,7 +19,7 @@ def generate_passcode_string(patt, reports):
     patt_letters = []
     patt_numbers = []
     patt_keywords = []
-    for _index, _name, _media in reports:
+    for _index, _name, _media in sorted(reports):
         if _media in string.ascii_letters:
             patt_letters.append(_media)
         elif _media in string.digits:
