@@ -164,5 +164,5 @@ class PasscodeData:
             if _name or _media:
                 _report = (index, _name, _media)
                 trustable_reports.add(_report)
-        return list(trustable_reports)
+        return sorted(list(trustable_reports))
 
