@@ -28,19 +28,19 @@ from ._config import (
 
 MESSAGE_CMD_FAILED = """
 Unrecognized command.
-Use "/passcode help" for help.
+Use "`/passcode help`" for help.
 """
 
 MESSAGE_HELP = """
-/passcode help
-/passcode report <index> <name> <media>
-/passcode unknown
-/passcode status
+`/passcode help`
+`/passcode report` \<index\> \<name\> \<media\>
+`/passcode unknown`
+`/passcode status`
 """
 
 MESSAGE_REPORT_RECIEVED = """
 Report recieved.
-Use "/passcode status" to view reports.
+Use "`/passcode status`" to view reports.
 """
 
 MESSAGE_IMAGE_PATT_RECIEVED = """
@@ -52,7 +52,6 @@ passcode patt: {}
 MESSAGE_TRUST_USER = """
 Added a trusted user:
 {}
-Use "/passcode trusted" to view trusted users.
 """
 
 MESSAGE_LIST_USER_REPORTS = """
@@ -87,12 +86,14 @@ Passcode guess is:
 """
 
 
-def _echo_message(tg, message, text):
-    tg.sendMessage({
+def _echo_message(tg, message, text, **kwargs):
+    data = {
         "chat_id": message["chat"]["id"],
         "reply_parameters": {"message_id": message["message_id"]},
         "text": text,
-    })
+    }
+    data.update(kwargs)
+    tg.sendMessage(data)
 
 
 def _with_data(do_dump=False, do_broadcast=False):
@@ -253,12 +254,24 @@ class PasscodeHandler:
 
 
     def command_failed(self, tg, message, text = ""):
-        self.pool.submit(_echo_message, tg, message, MESSAGE_CMD_FAILED + text)
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_CMD_FAILED + text,
+            parse_mode="MarkdownV2",
+        )
         return True
 
 
     def _cmd_help(self, tg, message):
-        self.pool.submit(_echo_message, tg, message, MESSAGE_HELP)
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_HELP,
+            parse_mode="MarkdownV2",
+        )
         return True
 
 
@@ -268,7 +281,13 @@ class PasscodeHandler:
         self.passcode_data.add_report(user, index, name, media)
         for user in self.passcode_data.get_trustable_users():
             self.passcode_data.add_trusted_user(user)
-        self.pool.submit(_echo_message, tg, message, MESSAGE_REPORT_RECIEVED)
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_REPORT_RECIEVED,
+            parse_mode="MarkdownV2",
+        )
         return True
 
 
@@ -300,9 +319,19 @@ class PasscodeHandler:
             for _index, _name, _media in trustable_reports
         )
 
-        self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_USER_REPORTS.format(text_list_user_reports))
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_LIST_USER_REPORTS.format(text_list_user_reports)
+        )
         if user_trusted:
-            self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTABLE_REPORTS.format(text_list_trustable_reports))
+            self.pool.submit(
+                _echo_message,
+                tg,
+                message,
+                MESSAGE_LIST_TRUSTABLE_REPORTS.format(text_list_trustable_reports)
+            )
         
         return True
 
@@ -311,10 +340,14 @@ class PasscodeHandler:
     @_with_data(do_dump=True)
     def _cmd_image(self, tg, message, url):
         self.passcode_data.set_passcode_url(url)
-        self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
-            self.passcode_data.get_passcode_url(),
-            self.passcode_data.get_passcode_patt(),
-        ))
+        self.pool.submit(
+            _echo_message,
+            tg, message,
+            MESSAGE_IMAGE_PATT_RECIEVED.format(
+                self.passcode_data.get_passcode_url(),
+                self.passcode_data.get_passcode_patt(),
+            )
+        )
         return True
 
 
@@ -322,10 +355,14 @@ class PasscodeHandler:
     @_with_data(do_dump=True)
     def _cmd_patt(self, tg, message, patt):
         self.passcode_data.set_passcode_patt(patt)
-        self.pool.submit(_echo_message, tg, message, MESSAGE_IMAGE_PATT_RECIEVED.format(
-            self.passcode_data.get_passcode_url(),
-            self.passcode_data.get_passcode_patt(),
-        ))
+        self.pool.submit(
+            _echo_message,
+            tg, message,
+            MESSAGE_IMAGE_PATT_RECIEVED.format(
+                self.passcode_data.get_passcode_url(),
+                self.passcode_data.get_passcode_patt(),
+            )
+        )
         return True
 
 
@@ -334,7 +371,12 @@ class PasscodeHandler:
     def _cmd_trust(self, tg, message, username):
         user = self.passcode_data.get_user_by_username(username)
         self.passcode_data.add_trusted_user(user)
-        self.pool.submit(_echo_message, tg, message, MESSAGE_TRUST_USER.format(f"{user['id']} : @{user['username']}"))
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_TRUST_USER.format(f"{user['id']} : @{user['username']}")
+        )
         return True
 
 
@@ -345,14 +387,24 @@ class PasscodeHandler:
             f"{user['id']} : @{user['username']}"
             for user in self.passcode_data.get_trusted_users()
         )
-        self.pool.submit(_echo_message, tg, message, MESSAGE_LIST_TRUSTED_USER.format(text_list_users))
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            MESSAGE_LIST_TRUSTED_USER.format(text_list_users)
+        )
         return True
 
 
     @_with_admin
     @_with_data()
     def _cmd_broadcast(self, tg, message):
-        self.pool.submit(_echo_message, tg, message, "Preparing Broadcast data...")
+        self.pool.submit(
+            _echo_message,
+            tg,
+            message,
+            "Preparing Broadcast data..."
+        )
         self.pool.submit(self.broadcast)
 
 
