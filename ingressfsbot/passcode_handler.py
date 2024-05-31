@@ -33,14 +33,14 @@ Use "`/passcode help`" for help.
 
 MESSAGE_HELP = """
 `/passcode help`
-`/passcode report` \<index\> \<name\> \<media\>
+`/passcode report` \<index\> \<latitude\>, \<longitude\> \<media\>
 `/passcode unknown`
 `/passcode status`
 """
 
 MESSAGE_REPORT_RECIEVED = """
-Report recieved.
-Use "`/passcode status`" to view reports.
+Report recieved\.
+Use "`/passcode status`" to view reports\.
 """
 
 MESSAGE_IMAGE_PATT_RECIEVED = """
