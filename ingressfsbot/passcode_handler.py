@@ -276,8 +276,19 @@ class PasscodeHandler:
 
 
     @_with_data(do_dump=True, do_broadcast=True)
-    def _cmd_report(self, tg, message, index, name, media):
+    def _cmd_report(self, tg, message, index, *args):
         user = message["from"]
+        if len(args) == 1:
+            name = ""
+            media = args[0]
+        elif len(args) == 2:
+            name, media = tuple(args)
+        elif len(args) == 3:
+            (x, y, media) = tuple(args[:3])
+            name = f"({x}{y})"
+        else:
+            self.pool.submit(self.command_failed, tg, message, "arguments invalid")
+            return True
         self.passcode_data.add_report(user, index, name, media)
         for user in self.passcode_data.get_trustable_users():
             self.passcode_data.add_trusted_user(user)
