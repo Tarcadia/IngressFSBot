@@ -381,6 +381,9 @@ class PasscodeHandler:
     @_with_data(do_dump=True)
     def _cmd_trust(self, tg, message, username):
         user = self.passcode_data.get_user_by_username(username)
+        if not user:
+            self.pool.submit(_echo_message, tg, message, "User not found.")
+            return True
         self.passcode_data.add_trusted_user(user)
         self.pool.submit(
             _echo_message,
