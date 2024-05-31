@@ -125,7 +125,7 @@ def getboolean(*args, **kwargs):
 def read_config(config_file = CONFIG_FILE):
     if os.path.isdir(config_file):
         for _, _, _subfiles in os.walk(config_file):
-            _read_files = _config.read(_subfiles)
+            _read_files = _config.read([os.path.join(config_file, _subfile) for _subfile in _subfiles])
             for _filename in _read_files:
                 logger.info(f"Loading config from {_filename}")
     else:
